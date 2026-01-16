@@ -20,10 +20,9 @@ func main() {
 	rawURL := args[0]
 	fmt.Println("starting crawl of:", rawURL)
 
-	html, err := getHTML(rawURL)
-	if err != nil {
-		fmt.Printf("failed to get html: %v", err)
-		os.Exit(1)
+	pages := map[string]int{}
+	crawlPage(rawURL, rawURL, pages)
+	for url, count := range pages {
+		fmt.Printf("%s: %d\n", url, count)
 	}
-	fmt.Println(html)
 }
