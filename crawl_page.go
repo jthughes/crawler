@@ -5,30 +5,44 @@ import (
 	"strings"
 )
 
-func crawlPage(rawBaseURL, rawCurrentURL string, pages map[string]int) {
-	normBaseURL, err := normalizeURL(rawBaseURL)
-	if err != nil {
-		return
-	}
+func (cfg *config) crawlPage(rawCurrentURL string) {
+	cfg.concurrencyControl <- struct{}{}
+	defer func() {
+		<-cfg.concurrencyControl
+		cfg.wg.Done()
+	}()
+
+	fmt.Printf("Scraping: %s\n", rawCurrentURL)
 	normCurrentURL, err := normalizeURL(rawCurrentURL)
 	if err != nil {
+		fmt.Println("=> Error normalizing url")
 		return
 	}
+	normBaseURL, err := normalizeURL(cfg.baseURL.String())
 	if strings.Index(normCurrentURL, normBaseURL) != 0 {
+		fmt.Printf("=> \"%s\" not in \"%s\"\n", normCurrentURL, cfg.baseURL.String())
 		return
 	}
-	if count, ok := pages[normCurrentURL]; ok {
-		pages[normCurrentURL] = count + 1
+	cfg.mu.Lock()
+	_, ok := cfg.pages[normCurrentURL]
+	cfg.mu.Unlock()
+	if ok {
+		fmt.Println("=> Already visited page")
 		return
 	}
-	pages[normCurrentURL] = 1
+
 	html, err := getHTML(rawCurrentURL)
 	if err != nil {
+		fmt.Printf("=> Error getting html: %s\n", err)
 		return
 	}
-	fmt.Printf("Got html from %s\n", rawCurrentURL)
+	fmt.Printf("=> Got html from %s\n", rawCurrentURL)
 	page := extractPageData(html, rawCurrentURL)
-	for index := range page.OutgoingLinks {
-		crawlPage(rawBaseURL, page.OutgoingLinks[index], pages)
+	cfg.mu.Lock()
+	cfg.pages[normCurrentURL] = page
+	cfg.mu.Unlock()
+	for _, url := range page.OutgoingLinks {
+		cfg.wg.Add(1)
+		go cfg.crawlPage(url)
 	}
 }
