@@ -6,11 +6,20 @@ import (
 )
 
 func (cfg *config) crawlPage(rawCurrentURL string) {
+
 	cfg.concurrencyControl <- struct{}{}
 	defer func() {
 		<-cfg.concurrencyControl
 		cfg.wg.Done()
 	}()
+
+	cfg.mu.Lock()
+	page_count := len(cfg.pages)
+	cfg.mu.Unlock()
+	if page_count >= cfg.maxPages {
+		fmt.Println("=> Reached max page count")
+		return
+	}
 
 	fmt.Printf("Scraping: %s\n", rawCurrentURL)
 	normCurrentURL, err := normalizeURL(rawCurrentURL)

@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"net/url"
+	"strconv"
 	"sync"
 	"time"
 
@@ -15,20 +16,29 @@ type config struct {
 	mu                 *sync.Mutex
 	concurrencyControl chan struct{}
 	wg                 *sync.WaitGroup
+	maxPages           int
 }
 
 func main() {
 	args := os.Args[1:]
 
-	if len(args) < 1 {
-		fmt.Println("no website provided")
+	if len(args) != 3 {
+		fmt.Printf("usage: %s URL maxConcurrency maxPages", os.Args[0])
 		os.Exit(1)
 	}
-	if len(args) > 1 {
-		fmt.Println("too many arguments provided")
-		os.Exit(1)
-	}
+
 	rawURL := args[0]
+	maxConcurrency, err := strconv.Atoi(args[1])
+	if err != nil {
+		fmt.Printf("\"%s\" is not a valid int\n", args[1])
+		os.Exit(1)
+	}
+
+	maxPages, err := strconv.Atoi(args[2])
+	if err != nil {
+		fmt.Printf("\"%s\" is not a valid int\n", args[1])
+		os.Exit(1)
+	}
 
 	u, err := url.Parse(rawURL)
 	if err != nil {
@@ -39,9 +49,10 @@ func main() {
 	cfg := config{
 		pages:              make(map[string]PageData),
 		baseURL:            u,
-		concurrencyControl: make(chan struct{}, 5),
+		concurrencyControl: make(chan struct{}, maxConcurrency),
 		mu:                 &sync.Mutex{},
 		wg:                 &sync.WaitGroup{},
+		maxPages:           maxPages,
 	}
 
 	fmt.Println("starting crawl of:", rawURL)
