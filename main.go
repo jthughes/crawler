@@ -62,13 +62,7 @@ func main() {
 	cfg.wg.Wait()
 	elapse := time.Since(start)
 
-	// for url, count := range cfg.pages {
-	// 	fmt.Printf("%s: %d\n", url, count)
-	// }
-
 	fmt.Printf("Pages scraped in %s:\n", elapse)
-	for url := range cfg.pages {
-		fmt.Printf(" - %s\n", url)
-	}
 
+	writeCSVReport(cfg.pages, "report.csv")
 }
